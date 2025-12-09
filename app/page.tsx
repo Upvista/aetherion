@@ -98,25 +98,10 @@ export default function Home() {
   useEffect(() => {
     voiceInterfaceRef.current = {
       startListening: voiceInterface.startListening,
-      startContinuousListening: voiceInterface.startContinuousListening,
       stopListening: voiceInterface.stopListening,
       speak: voiceInterface.speak,
     };
   }, [voiceInterface]);
-
-  // Start continuous listening for "hey vista" hotword on mount
-  useEffect(() => {
-    if (voiceInterface.isSupported && !voiceInterface.isListening) {
-      // Start continuous listening for hotword detection
-      const timer = setTimeout(() => {
-        if (!voiceInterface.isListening) {
-          voiceInterface.startContinuousListening();
-        }
-      }, 1500); // Delay to ensure everything is ready
-      
-      return () => clearTimeout(timer);
-    }
-  }, [voiceInterface.isSupported]);
 
   // Idle detection - show sleepy after 30 seconds of inactivity
   useEffect(() => {

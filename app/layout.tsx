@@ -39,6 +39,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/assets/vista logo.PNG" />
+        <link rel="apple-touch-icon" href="/assets/vista logo.PNG" />
         <meta name="theme-color" content="#00ffff" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

@@ -11,8 +11,7 @@ export function useVoiceInterface(
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
-  const hotwordDetectedRef = useRef(false);
-  const continuousListeningRef = useRef(false);
+  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const isStartingRef = useRef(false);
 
   useEffect(() => {
@@ -22,110 +21,133 @@ export function useVoiceInterface(
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true; // Enable continuous listening for hotword
-      recognitionRef.current.interimResults = true; // Get interim results for hotword detection
+      recognitionRef.current.continuous = false; // Single utterance mode (click to talk)
+      recognitionRef.current.interimResults = false; // Only final results
       recognitionRef.current.lang = 'en-US';
 
       recognitionRef.current.onstart = () => {
         setIsListening(true);
         setError(null);
         isStartingRef.current = false;
-        if (!hotwordDetectedRef.current) {
-          // Only show "listening" status after hotword is detected
-        }
+        onStatusChange('listening');
       };
 
       recognitionRef.current.onresult = (event: any) => {
         let finalTranscript = '';
-        let interimTranscript = '';
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
             finalTranscript += transcript + ' ';
-          } else {
-            interimTranscript += transcript;
           }
         }
 
-        // Hotword detection: "hey vista" (exact phrase only, nothing else)
-        const allText = (finalTranscript + interimTranscript).toLowerCase().trim();
-        
-        // Clean up common punctuation and normalize whitespace
-        const normalizedText = allText.replace(/[.,!?]/g, '').replace(/\s+/g, ' ').trim();
-        
-        // Only detect "hey vista" if it's the ONLY thing said (exact match)
-        const isOnlyHeyVista = normalizedText === 'hey vista';
-        
-        // Only trigger if "hey vista" is the ONLY text (no other words before or after)
-        if (!hotwordDetectedRef.current && isOnlyHeyVista) {
-          hotwordDetectedRef.current = true;
-          continuousListeningRef.current = true;
-          onStatusChange('listening'); // Show listening status after hotword with purplish glow
-          return; // Don't process anything else, just wait for next command
-        }
-
-        // Only process commands after hotword is detected (and it's NOT "hey vista" again)
-        if (hotwordDetectedRef.current && finalTranscript.trim() && !isOnlyHeyVista) {
-          // Remove "hey vista" from the beginning if present
-          let cleanedText = finalTranscript.trim().replace(/^hey vista[\s,.:!?]*/gi, '').trim();
-          if (cleanedText) {
-            onTranscript(cleanedText);
-            onStatusChange('processing');
-          }
+        // Process the transcript
+        const cleanedText = finalTranscript.trim();
+        if (cleanedText) {
+          console.log('[Voice] Transcript:', cleanedText);
+          onTranscript(cleanedText);
+          onStatusChange('processing');
         }
       };
 
       recognitionRef.current.onerror = (event: any) => {
         setError(event.error);
         isStartingRef.current = false;
-        
-        // Don't reset on "no-speech" error during continuous listening
-        if (event.error === 'no-speech' && continuousListeningRef.current) {
-          // Keep listening for hotword
-          return;
-        }
+        console.log('[Recognition] Error:', event.error);
         
         if (event.error === 'aborted') {
           // Recognition was stopped intentionally, don't reset
           return;
         }
         
-        // For other errors, reset if not in continuous mode
-        if (!continuousListeningRef.current) {
-          setIsListening(false);
-          hotwordDetectedRef.current = false;
-          onStatusChange('idle');
-        }
+        setIsListening(false);
+        onStatusChange('idle');
       };
 
       recognitionRef.current.onend = () => {
         setIsListening(false);
         isStartingRef.current = false;
-        
-        // Auto-restart if continuous listening is enabled (for hotword detection)
-        if (continuousListeningRef.current && !hotwordDetectedRef.current) {
-          // Restart hotword detection after a delay
-          setTimeout(() => {
-            if (recognitionRef.current && !isStartingRef.current) {
-              try {
-                isStartingRef.current = true;
-                recognitionRef.current.start();
-              } catch (err: any) {
-                isStartingRef.current = false;
-                // Ignore "already started" errors
-                if (!err.message?.includes('already started')) {
-                  console.log('Error restarting hotword detection:', err);
-                }
-              }
-            }
-          }, 1000);
+        console.log('[Recognition] Ended');
+        // Recognition ends naturally after processing, return to idle
+        if (!isStartingRef.current) {
+          onStatusChange('idle');
         }
       };
     }
 
     // Text-to-Speech
     synthesisRef.current = window.speechSynthesis;
+
+    // Function to find and select a beautiful female American voice
+    const selectFemaleVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      console.log('[Voice] Available voices:', voices.length);
+      
+      // Preferred female voices (in order of preference)
+      const preferredNames = [
+        'Samantha',           // macOS - very natural
+        'Karen',              // macOS - clear and pleasant
+        'Victoria',           // macOS - warm
+        'Google US English Female',  // Chrome - good quality
+        'Microsoft Zira - English (United States)',  // Windows Edge
+        'Microsoft Zira',    // Windows
+        'en-US-Female',       // Generic
+        'en_US-female',       // Generic
+      ];
+      
+      // First, try to find a preferred voice by name
+      for (const preferredName of preferredNames) {
+        const voice = voices.find(v => 
+          v.name.includes(preferredName) || 
+          v.name.toLowerCase().includes(preferredName.toLowerCase())
+        );
+        if (voice && voice.lang.startsWith('en-US')) {
+          selectedVoiceRef.current = voice;
+          console.log('[Voice] Selected preferred voice:', voice.name, voice.lang);
+          return;
+        }
+      }
+      
+      // Fallback: find any female en-US voice
+      const femaleVoice = voices.find(v => {
+        const isEnUS = v.lang.startsWith('en-US');
+        const isFemale = v.name.toLowerCase().includes('female') || 
+                        v.name.toLowerCase().includes('samantha') ||
+                        v.name.toLowerCase().includes('karen') ||
+                        v.name.toLowerCase().includes('victoria') ||
+                        v.name.toLowerCase().includes('zira') ||
+                        v.name.toLowerCase().includes('susan') ||
+                        v.name.toLowerCase().includes('linda');
+        return isEnUS && isFemale;
+      });
+      
+      if (femaleVoice) {
+        selectedVoiceRef.current = femaleVoice;
+        console.log('[Voice] Selected female voice:', femaleVoice.name, femaleVoice.lang);
+        return;
+      }
+      
+      // Last resort: any en-US voice
+      const enUSVoice = voices.find(v => v.lang.startsWith('en-US'));
+      if (enUSVoice) {
+        selectedVoiceRef.current = enUSVoice;
+        console.log('[Voice] Selected fallback voice:', enUSVoice.name, enUSVoice.lang);
+      } else {
+        console.log('[Voice] No suitable voice found, using default');
+      }
+    };
+
+    // Load voices (they might not be available immediately)
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = selectFemaleVoice;
+    }
+    
+    // Try to select voice immediately (might work on some browsers)
+    selectFemaleVoice();
+    
+    // Also try after a short delay (voices might load asynchronously)
+    setTimeout(selectFemaleVoice, 500);
 
     return () => {
       if (recognitionRef.current) {
@@ -155,8 +177,6 @@ export function useVoiceInterface(
       if (recognitionRef.current && !isStartingRef.current) {
         try {
           isStartingRef.current = true;
-          hotwordDetectedRef.current = false;
-          continuousListeningRef.current = false;
           recognitionRef.current.continuous = false;
           recognitionRef.current.interimResults = false;
           recognitionRef.current.start();
@@ -171,38 +191,6 @@ export function useVoiceInterface(
     }, 300);
   };
 
-  const startContinuousListening = () => {
-    if (!recognitionRef.current) return;
-    
-    // Stop any existing recognition first
-    if (isListening || isStartingRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore stop errors
-      }
-    }
-    
-    // Wait a bit before starting continuous recognition
-    setTimeout(() => {
-      if (recognitionRef.current && !isStartingRef.current) {
-        try {
-          isStartingRef.current = true;
-          hotwordDetectedRef.current = false;
-          continuousListeningRef.current = true;
-          recognitionRef.current.continuous = true;
-          recognitionRef.current.interimResults = true;
-          recognitionRef.current.start();
-        } catch (err: any) {
-          isStartingRef.current = false;
-          // Ignore "already started" errors
-          if (!err.message?.includes('already started')) {
-            console.error('Error starting continuous recognition:', err);
-          }
-        }
-      }
-    }, 300);
-  };
 
   const stopListening = () => {
     if (recognitionRef.current) {
@@ -210,8 +198,7 @@ export function useVoiceInterface(
         recognitionRef.current.stop();
         setIsListening(false);
         isStartingRef.current = false;
-        hotwordDetectedRef.current = false;
-        continuousListeningRef.current = false;
+        onStatusChange('idle');
       } catch (e) {
         // Ignore errors
       }
@@ -225,10 +212,31 @@ export function useVoiceInterface(
     synthesisRef.current.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 0.8;
+    
+    // Use the selected female voice if available
+    if (selectedVoiceRef.current) {
+      utterance.voice = selectedVoiceRef.current;
+      console.log('[Voice] Using voice:', selectedVoiceRef.current.name);
+    } else {
+      // Fallback: try to select voice again
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice = voices.find(v => 
+        v.lang.startsWith('en-US') && 
+        (v.name.toLowerCase().includes('female') || 
+         v.name.toLowerCase().includes('samantha') ||
+         v.name.toLowerCase().includes('karen'))
+      );
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+        selectedVoiceRef.current = femaleVoice;
+      }
+      utterance.lang = 'en-US';
+    }
+    
+    // Optimized settings for natural, beautiful female voice
+    utterance.rate = 0.95;      // Slightly slower for clarity
+    utterance.pitch = 1.1;      // Slightly higher pitch (more feminine)
+    utterance.volume = 0.9;     // Clear volume
 
     utterance.onstart = () => {
       onStatusChange('speaking');
@@ -244,17 +252,6 @@ export function useVoiceInterface(
 
     utterance.onend = () => {
       onStatusChange('idle');
-      
-      // Reset hotword detection and resume continuous listening
-      hotwordDetectedRef.current = false;
-      
-      // Restart continuous listening for hotword detection
-      if (continuousListeningRef.current) {
-        setTimeout(() => {
-          startContinuousListening();
-        }, 500);
-      }
-      
       if (onEnd) onEnd();
     };
 
@@ -268,7 +265,6 @@ export function useVoiceInterface(
 
   return {
     startListening,
-    startContinuousListening,
     stopListening,
     speak,
     isSupported,
