@@ -13,6 +13,8 @@ export function useVoiceInterface(
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const isStartingRef = useRef(false);
+  const startTimeRef = useRef<number>(0); // Track when recognition started
+  const ignoreEndRef = useRef(false); // Flag to ignore premature ends
 
   useEffect(() => {
     // Check for Speech Recognition support
@@ -26,6 +28,9 @@ export function useVoiceInterface(
       recognitionRef.current.lang = 'en-US';
 
       recognitionRef.current.onstart = () => {
+        console.log('[Recognition] Started successfully!');
+        startTimeRef.current = Date.now();
+        ignoreEndRef.current = false; // Reset ignore flag
         setIsListening(true);
         setError(null);
         isStartingRef.current = false;
@@ -53,41 +58,82 @@ export function useVoiceInterface(
 
       recognitionRef.current.onerror = (event: any) => {
         setError(event.error);
-        isStartingRef.current = false;
         console.log('[Recognition] Error:', event.error, '| Details:', event);
         
         // Don't reset on these errors - they're expected
         if (event.error === 'aborted') {
           // Recognition was stopped intentionally
           console.log('[Recognition] Aborted (intentional)');
+          isStartingRef.current = false;
+          // Don't reset state - let onend handle it
           return;
         }
         
         if (event.error === 'no-speech') {
-          // No speech detected - might be on mobile, keep listening for a bit
-          console.log('[Recognition] No speech detected');
-          // Don't immediately reset - let it time out naturally
+          // No speech detected - this is normal, keep listening
+          console.log('[Recognition] No speech detected - this is normal, continuing...');
+          // Don't reset anything - recognition will continue or end naturally
+          isStartingRef.current = false;
           return;
         }
         
-        // For other errors, reset
-        console.log('[Recognition] Error occurred, resetting:', event.error);
-        setIsListening(false);
-        onStatusChange('idle');
+        if (event.error === 'network') {
+          // Network error - might be temporary
+          console.log('[Recognition] Network error');
+          isStartingRef.current = false;
+          return;
+        }
+        
+        // For other errors, only reset if it's not starting
+        console.log('[Recognition] Error occurred:', event.error);
+        isStartingRef.current = false;
+        
+        // Only reset to idle after a delay, not immediately
+        setTimeout(() => {
+          if (!isStartingRef.current && !isListening) {
+            setIsListening(false);
+            onStatusChange('idle');
+          }
+        }, 300);
       };
 
       recognitionRef.current.onend = () => {
-        console.log('[Recognition] Ended', '| isStarting:', isStartingRef.current, '| isListening:', isListening);
+        const timeElapsed = Date.now() - startTimeRef.current;
+        console.log('[Recognition] Ended', '| Time elapsed:', timeElapsed, 'ms', '| isStarting:', isStartingRef.current, '| isListening:', isListening);
+        
+        // Ignore ends that happen too quickly (less than 500ms) - these are likely false starts
+        if (timeElapsed < 500 && !ignoreEndRef.current) {
+          console.log('[Recognition] End ignored - too quick (<500ms), likely false start on mobile');
+          ignoreEndRef.current = true;
+          // Try to restart immediately
+          setTimeout(() => {
+            if (recognitionRef.current && !isStartingRef.current) {
+              try {
+                console.log('[Recognition] Retrying after quick end...');
+                isStartingRef.current = true;
+                recognitionRef.current.start();
+              } catch (e: any) {
+                isStartingRef.current = false;
+                console.log('[Recognition] Retry failed:', e);
+              }
+            }
+          }, 100);
+          return;
+        }
+        
+        const wasListening = isListening;
         setIsListening(false);
         isStartingRef.current = false;
         
-        // Only change to idle if we're not in the process of starting again
-        // This prevents flickering on mobile
+        // Only change to idle after a delay, and only if we were actually listening
         setTimeout(() => {
-          if (!isStartingRef.current && !isListening) {
+          if (!isStartingRef.current && !isListening && wasListening && timeElapsed >= 500) {
+            console.log('[Recognition] Actually ended, going to idle');
             onStatusChange('idle');
+          } else {
+            console.log('[Recognition] End ignored - might be restarting');
           }
-        }, 100);
+        }, 500);
       };
     }
 
@@ -183,21 +229,34 @@ export function useVoiceInterface(
     
     console.log('[Voice] Starting listening...', 'isListening:', isListening, 'isStarting:', isStartingRef.current);
     
-    // Stop any existing recognition first
-    if (isListening || isStartingRef.current) {
+    // Stop any existing recognition first, but only if it's actually running
+    if (isListening) {
       try {
         console.log('[Voice] Stopping existing recognition...');
         recognitionRef.current.stop();
-        // Wait a bit before starting new recognition on desktop
-        // But on mobile, start immediately after stopping
+        // Wait a bit for it to fully stop
+        setTimeout(() => {
+          actuallyStartListening();
+        }, 100);
+        return;
       } catch (e) {
         console.log('[Voice] Error stopping recognition:', e);
       }
     }
     
+    // If not already listening, start immediately
+    actuallyStartListening();
+  };
+
+  const actuallyStartListening = () => {
+    if (!recognitionRef.current || isStartingRef.current) {
+      return;
+    }
+
     // For mobile, start immediately (no delay) to maintain user gesture context
     // For desktop, small delay is okay
-    const delay = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 50 : 300;
+    const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+    const delay = isMobile ? 0 : 100; // Zero delay on mobile!
     
     setTimeout(() => {
       if (recognitionRef.current && !isStartingRef.current) {
@@ -205,34 +264,21 @@ export function useVoiceInterface(
           isStartingRef.current = true;
           recognitionRef.current.continuous = false;
           recognitionRef.current.interimResults = false;
-          console.log('[Voice] Starting recognition now...');
+          console.log('[Voice] Actually starting recognition now... (delay:', delay, 'ms)');
           recognitionRef.current.start();
+          console.log('[Voice] Recognition.start() called successfully');
         } catch (err: any) {
           isStartingRef.current = false;
-          console.error('[Voice] Error starting recognition:', err);
-          // For mobile, if "already started" error, wait and try again
+          console.error('[Voice] Error starting recognition:', err, err.message);
+          
+          // If already started, that's okay - it means it's running
           if (err.message?.includes('already started') || err.message?.includes('started')) {
-            console.log('[Voice] Recognition already started, will try to stop and restart...');
-            setTimeout(() => {
-              try {
-                recognitionRef.current?.stop();
-                setTimeout(() => {
-                  if (recognitionRef.current && !isStartingRef.current) {
-                    try {
-                      isStartingRef.current = true;
-                      recognitionRef.current.start();
-                    } catch (e2: any) {
-                      isStartingRef.current = false;
-                      console.error('[Voice] Retry failed:', e2);
-                    }
-                  }
-                }, 100);
-              } catch (e) {
-                console.error('[Voice] Error stopping for retry:', e);
-              }
-            }, 200);
+            console.log('[Voice] Recognition already started - that\'s okay!');
+            isStartingRef.current = false; // Don't block future starts
           }
         }
+      } else {
+        console.log('[Voice] Cannot start - recognition not available or already starting');
       }
     }, delay);
   };
