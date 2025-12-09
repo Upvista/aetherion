@@ -22,12 +22,24 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
   const [currentAutoEmotion, setCurrentAutoEmotion] = useState<string | null>(null);
   const [lookDirection, setLookDirection] = useState<'center' | 'left' | 'right'>('center');
 
-  // Eye tracking and random looking around
+  // Eye tracking and random looking around - allow during listening/thinking/talking too
   useEffect(() => {
-    if (!containerRef.current || emotion !== 'neutral' || !isActive || !autoAnimate) return;
+    if (!containerRef.current || !isActive || !autoAnimate) return;
+    
+    // Don't do random eye movements during active emotion animations
+    if (currentAutoEmotion !== null && 
+        emotion !== 'neutral' && 
+        emotion !== 'listening' && 
+        emotion !== 'thinking' && 
+        emotion !== 'talking') {
+      return;
+    }
     
     // Random eye movement (looking around)
     const lookInterval = setInterval(() => {
+      // Don't interrupt if user is actively tracking mouse/touch
+      if (lookDirection !== 'center') return;
+      
       const directions: Array<'left' | 'right' | 'center'> = ['left', 'right', 'center'];
       const randomDir = directions[Math.floor(Math.random() * directions.length)];
       setLookDirection(randomDir);
@@ -39,12 +51,20 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
     }, 3000 + Math.random() * 3000); // Look around every 3-6 seconds
 
     return () => clearInterval(lookInterval);
-  }, [emotion, isActive, autoAnimate]);
+  }, [emotion, isActive, autoAnimate, currentAutoEmotion, lookDirection]);
 
-  // Mouse/touch tracking
+  // Mouse/touch tracking - allow during listening/thinking/talking
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current || emotion !== 'neutral' || !isActive) return;
+      if (!containerRef.current || !isActive) return;
+      
+      // Allow tracking during neutral, listening, thinking, talking states
+      const allowTracking = emotion === 'neutral' || 
+                           emotion === 'listening' || 
+                           emotion === 'thinking' || 
+                           emotion === 'talking';
+      
+      if (!allowTracking || currentAutoEmotion) return;
       
       const rect = containerRef.current.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
@@ -61,7 +81,15 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!containerRef.current || emotion !== 'neutral' || !isActive || e.touches.length === 0) return;
+      if (!containerRef.current || !isActive || e.touches.length === 0) return;
+      
+      // Allow tracking during neutral, listening, thinking, talking states
+      const allowTracking = emotion === 'neutral' || 
+                           emotion === 'listening' || 
+                           emotion === 'thinking' || 
+                           emotion === 'talking';
+      
+      if (!allowTracking || currentAutoEmotion) return;
       
       const touch = e.touches[0];
       const rect = containerRef.current.getBoundingClientRect();
@@ -78,7 +106,15 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
       });
     };
 
-    if (emotion === 'neutral' && isActive && lookDirection === 'center') {
+    const allowTracking = (emotion === 'neutral' || 
+                          emotion === 'listening' || 
+                          emotion === 'thinking' || 
+                          emotion === 'talking') && 
+                          isActive && 
+                          lookDirection === 'center' &&
+                          !currentAutoEmotion;
+    
+    if (allowTracking) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('touchmove', handleTouchMove);
       return () => {
@@ -91,15 +127,23 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
         setEyePosition({ x: -10, y: 0 });
       } else if (lookDirection === 'right') {
         setEyePosition({ x: 10, y: 0 });
-      } else {
+      } else if (!currentAutoEmotion && emotion !== 'listening' && emotion !== 'thinking' && emotion !== 'talking') {
         setEyePosition({ x: 0, y: 0 });
       }
     }
-  }, [emotion, isActive, lookDirection]);
+  }, [emotion, isActive, lookDirection, currentAutoEmotion]);
 
-  // Auto blinking
+  // Auto blinking - should work in all states except during actual emotion animations
   useEffect(() => {
-    if (emotion !== 'neutral' || !isActive || !autoAnimate) return;
+    if (!isActive || !autoAnimate) return;
+    
+    // Don't blink during emotion animations, but allow blinking during listening/thinking/talking
+    const shouldSkipBlink = currentAutoEmotion !== null && 
+                           emotion !== 'listening' && 
+                           emotion !== 'thinking' && 
+                           emotion !== 'talking';
+    
+    if (shouldSkipBlink) return;
 
     const blinkInterval = setInterval(() => {
       setIsBlinking(true);
@@ -107,7 +151,7 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
     }, 3000 + Math.random() * 2000);
 
     return () => clearInterval(blinkInterval);
-  }, [emotion, isActive, autoAnimate]);
+  }, [emotion, isActive, autoAnimate, currentAutoEmotion]);
 
   // Auto emotion animation
   useEffect(() => {
@@ -200,7 +244,23 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
 
   // Calculate eye transform based on look direction or mouse position
   const getEyeTransform = () => {
-    if (emotion !== 'neutral' || !isActive) return undefined;
+    if (!isActive) return undefined;
+    
+    // Don't apply transform during emotion animations (except listening/thinking/talking)
+    if (currentAutoEmotion && 
+        emotion !== 'listening' && 
+        emotion !== 'thinking' && 
+        emotion !== 'talking') {
+      return undefined;
+    }
+    
+    // Allow eye movement during neutral, listening, thinking, talking
+    const allowMovement = emotion === 'neutral' || 
+                         emotion === 'listening' || 
+                         emotion === 'thinking' || 
+                         emotion === 'talking';
+    
+    if (!allowMovement) return undefined;
     
     if (lookDirection === 'left') {
       return 'translate(-10px, 0px)';
