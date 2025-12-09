@@ -153,55 +153,49 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
     return () => clearInterval(blinkInterval);
   }, [emotion, isActive, autoAnimate, currentAutoEmotion]);
 
-  // Auto emotion animation
+  // Auto emotion animation - CONTINUOUS, never stops
   useEffect(() => {
     if (!autoAnimate || !isActive) return;
-    
-    // Don't auto-animate if user is interacting (listening, thinking, talking)
-    if (emotion === 'listening' || emotion === 'thinking' || emotion === 'talking') {
-      return;
-    }
 
     const autoEmotionInterval = setInterval(() => {
-      // Only show auto emotions when in neutral state
-      if (emotion === 'neutral') {
-        const randomEmotion = AUTO_EMOTIONS[Math.floor(Math.random() * AUTO_EMOTIONS.length)];
-        setCurrentAutoEmotion(randomEmotion);
-        
-        // Show emotion for 2-3 seconds
-        setTimeout(() => {
-          setCurrentAutoEmotion(null);
-        }, 2000 + Math.random() * 1000);
-      }
-    }, 4000 + Math.random() * 3000); // Random interval between 4-7 seconds
+      // Show emotions continuously, even during listening/thinking/talking
+      // But skip if there's already an active auto emotion
+      if (currentAutoEmotion) return;
+      
+      // Select random emotion
+      const randomEmotion = AUTO_EMOTIONS[Math.floor(Math.random() * AUTO_EMOTIONS.length)];
+      setCurrentAutoEmotion(randomEmotion);
+      
+      // Show emotion for 2-4 seconds (longer for more visible emotions)
+      const emotionDuration = 2000 + Math.random() * 2000;
+      setTimeout(() => {
+        setCurrentAutoEmotion(null);
+      }, emotionDuration);
+    }, 3000 + Math.random() * 2000); // Show new emotion every 3-5 seconds (faster, more continuous)
 
     return () => clearInterval(autoEmotionInterval);
-  }, [emotion, isActive, autoAnimate]);
+  }, [emotion, isActive, autoAnimate, currentAutoEmotion]);
 
-  // Get emotion class - prioritize user emotion over auto emotion
+  // Get emotion class - auto emotions show continuously, even during listening/thinking/talking
   const getEmotionClass = () => {
     if (!isActive) return '';
     
-    // User emotions take priority
-    if (emotion === 'listening' || emotion === 'thinking' || emotion === 'talking') {
-      switch (emotion) {
-        case 'listening':
-          return 'listening';
-        case 'thinking':
-          return 'thinking';
-        case 'talking':
-          return 'talking';
-        default:
-          return '';
-      }
-    }
-    
-    // Show auto emotion if active
+    // Show auto emotion if active (these take priority and show continuously)
     if (currentAutoEmotion) {
       return currentAutoEmotion;
     }
     
-    // Otherwise show user emotion
+    // User emotions (listening/thinking/talking) are shown through CSS classes but auto emotions take visual priority
+    // The listening/thinking/talking states will still show purple glow, etc. via CSS
+    // but auto emotions will animate the eyes continuously
+    if (emotion === 'listening' || emotion === 'thinking' || emotion === 'talking') {
+      // Return both - auto emotion for eye animation, and base state for CSS glow
+      // Auto emotion already returned above, so we add the state as a secondary class
+      // This is handled by the CSS - listening state has purple glow
+      return '';
+    }
+    
+    // Show user emotion
     switch (emotion) {
       case 'happy':
         return 'happy';
@@ -276,7 +270,7 @@ export default function RobotFace({ emotion, isActive = false, onFaceClick, auto
   return (
     <div className="robot-container">
       <div 
-        className={`robot-face ${getEmotionClass()}`} 
+        className={`robot-face ${getEmotionClass()} ${emotion === 'listening' ? 'listening' : ''} ${emotion === 'thinking' ? 'thinking' : ''} ${emotion === 'talking' ? 'talking' : ''}`}
         ref={containerRef}
         onClick={onFaceClick}
         style={{ cursor: onFaceClick ? 'pointer' : 'default' }}
