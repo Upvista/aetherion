@@ -126,21 +126,34 @@ export default function Home() {
   }, [emotion]);
 
   // Handle face click - show joy and start listening
-  const handleFaceClick = () => {
+  const handleFaceClick = (e?: React.MouseEvent) => {
     if (!voiceInterface.isSupported) {
+      console.log('[Page] Voice interface not supported');
       return;
+    }
+
+    // Prevent default to ensure click event is properly handled on mobile
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
 
     lastActivityRef.current = Date.now(); // Reset idle timer
     
+    console.log('[Page] Face clicked, starting listening...');
+    
     // Show happy emotion
     setEmotion('happy');
     
-    // Start listening after a short delay
+    // On mobile, start listening faster to maintain user gesture context
+    const isMobile = /Mobile|Android|iPhone|iPad/.test(navigator.userAgent);
+    const delay = isMobile ? 300 : 800;
+    
     setTimeout(() => {
       setEmotion('listening');
+      console.log('[Page] Calling startListening...');
       voiceInterface.startListening();
-    }, 800);
+    }, delay);
   };
 
   return (
