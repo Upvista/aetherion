@@ -1099,6 +1099,21 @@ html[data-theme="dark"] body {
   color: #ff69b4;
 }
 
+/* Voice Selection Wrapper */
+.voice-select-wrapper {
+  position: relative;
+  width: 100%;
+  z-index: 10;
+  display: block;
+}
+
+/* Ensure wrapper doesn't interfere with dropdown */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .voice-select-wrapper {
+    z-index: 1000;
+  }
+}
+
 /* Voice Selection */
 .voice-select {
   width: 100%;
@@ -1121,6 +1136,11 @@ html[data-theme="dark"] body {
   padding-right: 40px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 10;
+  /* Ensure dropdown is above other elements */
+  min-height: 44px; /* Minimum touch target size */
+  display: block;
 }
 
 .voice-select:hover {
@@ -1134,25 +1154,90 @@ html[data-theme="dark"] body {
   border-color: rgba(255, 105, 180, 0.7);
   box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.1);
   background: rgba(255, 255, 255, 1);
+  z-index: 100; /* Higher z-index when focused */
 }
 
 .voice-select:active {
   background: rgba(255, 255, 255, 1);
 }
 
+/* Ensure options are visible and properly styled */
 .voice-select option {
-  padding: 8px;
+  padding: 12px 16px;
   background: #fff;
   color: #333;
   font-size: 14px;
+  font-weight: 500;
+  min-height: 44px;
+  line-height: 1.5;
+  display: block;
 }
 
-/* Mobile landscape - smaller select */
+/* Dark theme support for options */
+html[data-theme="dark"] .voice-select {
+  background: rgba(30, 30, 30, 0.9);
+  border-color: rgba(255, 192, 203, 0.3);
+  color: #e0e0e0;
+}
+
+html[data-theme="dark"] .voice-select:focus {
+  background: rgba(40, 40, 40, 1);
+  border-color: rgba(255, 105, 180, 0.7);
+}
+
+html[data-theme="dark"] .voice-select option {
+  background: #2a2a2a;
+  color: #e0e0e0;
+}
+
+/* Mobile landscape - smaller select but ensure it's still functional */
 @media screen and (orientation: landscape) and (max-height: 600px) {
   .voice-select {
-    padding: 8px 12px;
-    font-size: 12px;
-    padding-right: 35px;
+    padding: 10px 14px;
+    font-size: 13px;
+    padding-right: 38px;
+    min-height: 40px;
+    /* Ensure dropdown opens properly on mobile */
+    position: relative;
+    z-index: 1000;
+  }
+  
+  .voice-select option {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+  
+  /* Ensure the select is clickable and dropdown appears */
+  .voice-select:focus,
+  .voice-select:active {
+    z-index: 1001;
+    position: relative;
+  }
+}
+
+/* Additional mobile fixes for dropdown visibility */
+@media screen and (max-width: 768px) {
+  .voice-select {
+    /* Ensure proper touch handling on mobile */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Make sure it's clickable */
+    pointer-events: auto;
+    /* Ensure dropdown options are visible */
+    z-index: 100;
+  }
+  
+  .voice-select:focus {
+    z-index: 1000;
+  }
+  
+  /* Fix for iOS Safari dropdown */
+  @supports (-webkit-touch-callout: none) {
+    .voice-select {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
   }
 }
 

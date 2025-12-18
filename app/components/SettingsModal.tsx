@@ -227,48 +227,57 @@ export default function SettingsModal({ isOpen, onClose, selectedFace, onFaceCha
 
           <div className="settings-section">
             <h3>Voice</h3>
-            <select
-              className="voice-select"
-              value={selectedVoice || ''}
-              onChange={(e) => {
-                console.log('[Settings] Voice changed to:', e.target.value);
-                onVoiceChange(e.target.value);
-              }}
-            >
-              <option value="">Default (Auto-select best voice)</option>
-              {availableVoices.map((voice) => {
-                // Determine gender for display
-                const isFemale = voice.name.toLowerCase().includes('female') ||
-                                voice.name.toLowerCase().includes('samantha') ||
-                                voice.name.toLowerCase().includes('allison') ||
-                                voice.name.toLowerCase().includes('victoria') ||
-                                voice.name.toLowerCase().includes('karen') ||
-                                voice.name.toLowerCase().includes('aria') ||
-                                voice.name.toLowerCase().includes('zira') ||
-                                voice.name.toLowerCase().includes('jenny') ||
-                                voice.name.toLowerCase().includes('fiona') ||
-                                voice.name.toLowerCase().includes('moira') ||
-                                voice.name.toLowerCase().includes('tessa') ||
-                                voice.name.toLowerCase().includes('veena');
-                
-                const isMale = voice.name.toLowerCase().includes('male') ||
-                              voice.name.toLowerCase().includes('alex') ||
-                              voice.name.toLowerCase().includes('david') ||
-                              voice.name.toLowerCase().includes('mark') ||
-                              voice.name.toLowerCase().includes('guy') ||
-                              voice.name.toLowerCase().includes('daniel') ||
-                              voice.name.toLowerCase().includes('tom');
-                
-                const genderLabel = isFemale ? ' (Female)' : isMale ? ' (Male)' : '';
-                const defaultLabel = voice.default ? ' ⭐' : '';
-                
-                return (
-                  <option key={voice.name} value={voice.name}>
-                    {voice.name}{genderLabel}{defaultLabel}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="voice-select-wrapper">
+              <select
+                className="voice-select"
+                value={selectedVoice || ''}
+                onChange={(e) => {
+                  console.log('[Settings] Voice changed to:', e.target.value);
+                  onVoiceChange(e.target.value);
+                }}
+                onFocus={(e) => {
+                  // Ensure dropdown is visible on mobile
+                  e.target.style.zIndex = '1000';
+                }}
+                onBlur={(e) => {
+                  e.target.style.zIndex = '10';
+                }}
+              >
+                <option value="">Default (Auto-select best voice)</option>
+                {availableVoices.map((voice) => {
+                  // Determine gender for display
+                  const isFemale = voice.name.toLowerCase().includes('female') ||
+                                  voice.name.toLowerCase().includes('samantha') ||
+                                  voice.name.toLowerCase().includes('allison') ||
+                                  voice.name.toLowerCase().includes('victoria') ||
+                                  voice.name.toLowerCase().includes('karen') ||
+                                  voice.name.toLowerCase().includes('aria') ||
+                                  voice.name.toLowerCase().includes('zira') ||
+                                  voice.name.toLowerCase().includes('jenny') ||
+                                  voice.name.toLowerCase().includes('fiona') ||
+                                  voice.name.toLowerCase().includes('moira') ||
+                                  voice.name.toLowerCase().includes('tessa') ||
+                                  voice.name.toLowerCase().includes('veena');
+                  
+                  const isMale = voice.name.toLowerCase().includes('male') ||
+                                voice.name.toLowerCase().includes('alex') ||
+                                voice.name.toLowerCase().includes('david') ||
+                                voice.name.toLowerCase().includes('mark') ||
+                                voice.name.toLowerCase().includes('guy') ||
+                                voice.name.toLowerCase().includes('daniel') ||
+                                voice.name.toLowerCase().includes('tom');
+                  
+                  const genderLabel = isFemale ? ' (Female)' : isMale ? ' (Male)' : '';
+                  const defaultLabel = voice.default ? ' ⭐' : '';
+                  
+                  return (
+                    <option key={voice.name} value={voice.name}>
+                      {voice.name}{genderLabel}{defaultLabel}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
 
           <div className="settings-section">
