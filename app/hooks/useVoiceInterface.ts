@@ -431,8 +431,21 @@ export function useVoiceInterface(
       if (onEnd) onEnd();
     };
 
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+    utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+      // Extract error information
+      const errorType = event.error || 'unknown';
+      const errorMessage = event.type || 'Speech synthesis error';
+      
+      // Only log actual errors (not warnings or empty events)
+      if (errorType !== 'interrupted' && errorType !== 'canceled') {
+        // Check if event has meaningful information
+        if (event.error || event.type) {
+          console.warn('[Speech Synthesis] Error:', errorMessage, 'Type:', errorType);
+        }
+        // If event is empty or just {}, don't log it as an error
+        // This often happens with browser quirks and isn't a real problem
+      }
+      
       onStatusChange('idle');
     };
 

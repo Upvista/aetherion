@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseCommand, ParsedCommand } from '../../../lib/command-parser';
+import { getWhatsAppService } from '../../../lib/whatsapp-service';
 
 // Simple emotion detection based on keywords
 function detectEmotion(text: string): string {
@@ -320,6 +322,128 @@ async function getAIResponse(message: string): Promise<string> {
   return getSimpleResponse(message);
 }
 
+/**
+ * Handle WhatsApp commands
+ */
+async function handleWhatsAppCommand(
+  command: ParsedCommand,
+  originalMessage: string
+): Promise<string> {
+  let service;
+  try {
+    service = getWhatsAppService();
+  } catch (error: any) {
+    return 'WhatsApp service is not available. Please connect WhatsApp first.';
+  }
+
+  // Check connection status
+  const isConnected = service.isConnected();
+  if (!isConnected) {
+    return 'WhatsApp is not connected. Please connect WhatsApp first by saying "connect WhatsApp" or scanning the QR code in settings.';
+  }
+
+  try {
+    if (command.action === 'check') {
+      // Check for new/unread messages
+      try {
+        const messages = command.filters?.unread
+          ? await service.getUnreadMessages()
+          : await service.getRecentMessages(command.filters?.contact, command.filters?.limit || 10);
+
+        if (messages.length === 0) {
+          return "You don't have any new messages right now.";
+        }
+
+        // Format response
+        let response = `You have ${messages.length} new message${messages.length > 1 ? 's' : ''}:\n\n`;
+        
+        for (const msg of messages.slice(0, 5)) {
+          const timeAgo = getTimeAgo(msg.timestamp);
+          response += `From ${msg.from}: "${msg.body}" (${timeAgo})\n`;
+        }
+
+        if (messages.length > 5) {
+          response += `\nAnd ${messages.length - 5} more message${messages.length - 5 > 1 ? 's' : ''}.`;
+        }
+
+        return response;
+      } catch (error: any) {
+        // Handle getContact() errors gracefully
+        if (error.message?.includes('getIsMyContact') || error.message?.includes('ContactMethods')) {
+          return "I'm having trouble reading some messages due to a WhatsApp Web update. Some chats may not be accessible, but I can still help with sending and replying to messages. Please try asking about specific contacts or use send/reply commands.";
+        }
+        throw error;
+      }
+    }
+
+    if (command.action === 'send' && command.target) {
+      if (!command.message) {
+        // No message provided - ask user what to send
+        return `What would you like to send to ${command.target}? Please tell me the message content. For example: "send hello to ${command.target}" or "send to ${command.target} saying hello there".`;
+      }
+      // Send message
+      await service.sendMessage(command.target, command.message);
+      return `Message sent to ${command.target}: "${command.message}"`;
+    }
+
+    if (command.action === 'reply' && command.message) {
+      // Reply to message
+      if (command.target) {
+        // Reply to latest message from contact
+        const messages = await service.getMessagesFromContact(command.target, 1);
+        if (messages.length > 0) {
+          await service.replyToMessage(messages[0].id, command.message);
+          return `Replied to ${command.target}: "${command.message}"`;
+        } else {
+          return `No recent messages from ${command.target} to reply to.`;
+        }
+      } else {
+        return 'Please specify who to reply to.';
+      }
+    }
+
+    if (command.action === 'read' && command.target) {
+      // Read messages from contact
+      const messages = await service.getMessagesFromContact(command.target, 10);
+      
+      if (messages.length === 0) {
+        return `No messages found from ${command.target}.`;
+      }
+
+      let response = `Messages from ${command.target}:\n\n`;
+      for (const msg of messages) {
+        const timeAgo = getTimeAgo(msg.timestamp);
+        response += `"${msg.body}" (${timeAgo})\n`;
+      }
+
+      return response;
+    }
+
+    return "I'm not sure what you want me to do with WhatsApp. Try asking to check messages, send a message, or reply to someone.";
+  } catch (error: any) {
+    if (error.message.includes('not connected')) {
+      return 'WhatsApp is not connected. Please connect WhatsApp first by saying "connect WhatsApp" or scanning the QR code.';
+    }
+    return `Sorry, I couldn't complete that WhatsApp action: ${error.message}`;
+  }
+}
+
+/**
+ * Get human-readable time ago
+ */
+function getTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -332,15 +456,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get AI response (with automatic fallback)
-    const response = await getAIResponse(message);
-    
-    // Detect emotion from user message
-    const emotion = detectEmotion(message);
+    // Parse command to check if it's a WhatsApp/email/calendar command
+    const command = parseCommand(message);
+
+    let response: string;
+    let emotion = detectEmotion(message);
+
+    if (command && command.type === 'whatsapp') {
+      // Handle WhatsApp command
+      response = await handleWhatsAppCommand(command, message);
+      emotion = 'listening'; // Show listening emotion for commands
+    } else {
+      // Regular AI chat
+      response = await getAIResponse(message);
+    }
 
     return NextResponse.json({
       response,
       emotion,
+      command: command || null,
     });
   } catch (error) {
     console.error('API error:', error);

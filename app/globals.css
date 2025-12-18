@@ -776,6 +776,9 @@ html[data-theme="dark"] body {
   align-items: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  padding: 10px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-modal {
@@ -788,13 +791,47 @@ html[data-theme="dark"] body {
   border-radius: 24px;
   padding: 0;
   max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
+  width: 100%;
+  max-height: 95vh;
+  height: auto;
   box-shadow: 
     0 20px 60px rgba(0, 0, 0, 0.3),
     0 8px 24px rgba(255, 182, 193, 0.2);
   overflow: hidden;
   animation: modal-enter 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile landscape adjustments */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .settings-modal {
+    max-height: 98vh;
+    max-width: 90vw;
+    border-radius: 16px;
+  }
+  
+  .settings-modal-header {
+    padding: 12px 16px !important;
+  }
+  
+  .settings-modal-header h2 {
+    font-size: 18px !important;
+  }
+  
+  .settings-content {
+    padding: 12px 16px !important;
+    max-height: calc(98vh - 60px) !important;
+  }
+  
+  .settings-section {
+    margin-bottom: 12px !important;
+  }
+  
+  .settings-section h3 {
+    font-size: 14px !important;
+    margin-bottom: 8px !important;
+  }
 }
 
 @keyframes modal-enter {
@@ -846,7 +883,18 @@ html[data-theme="dark"] body {
 .settings-content {
   padding: 24px;
   overflow-y: auto;
-  max-height: calc(80vh - 100px);
+  overflow-x: hidden;
+  max-height: calc(95vh - 100px);
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile landscape - reduce padding */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .settings-content {
+    padding: 12px 16px;
+    max-height: calc(98vh - 60px);
+  }
 }
 
 .settings-section h3 {
@@ -1065,10 +1113,14 @@ html[data-theme="dark"] body {
   transition: all 0.2s;
   font-family: 'Orbitron', monospace;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 16px center;
   padding-right: 40px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .voice-select:hover {
@@ -1084,8 +1136,431 @@ html[data-theme="dark"] body {
   background: rgba(255, 255, 255, 1);
 }
 
+.voice-select:active {
+  background: rgba(255, 255, 255, 1);
+}
+
 .voice-select option {
   padding: 8px;
   background: #fff;
   color: #333;
+  font-size: 14px;
+}
+
+/* Mobile landscape - smaller select */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .voice-select {
+    padding: 8px 12px;
+    font-size: 12px;
+    padding-right: 35px;
+  }
+}
+
+/* Connected Apps Section */
+.connected-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connected-app-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.connected-app-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 192, 203, 0.3);
+}
+
+.app-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.app-icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 240, 245, 0.8);
+  border-radius: 10px;
+}
+
+.app-details {
+  flex: 1;
+}
+
+.app-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.app-status {
+  font-size: 12px;
+}
+
+.app-status-connected {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.app-status-disconnected {
+  color: #6b7280;
+}
+
+.app-connect-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 105, 180, 0.1);
+  border: 2px solid rgba(255, 105, 180, 0.3);
+  color: #ff69b4;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Orbitron', monospace;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-connect-btn:hover {
+  background: rgba(255, 105, 180, 0.2);
+  border-color: rgba(255, 105, 180, 0.5);
+  transform: translateY(-1px);
+}
+
+.app-connect-btn:active {
+  transform: translateY(0);
+}
+
+/* Mobile landscape - smaller app items */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .connected-app-item {
+    padding: 10px 12px;
+  }
+  
+  .app-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+  
+  .app-name {
+    font-size: 14px;
+  }
+  
+  .app-status {
+    font-size: 11px;
+  }
+  
+  .app-connect-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .face-option {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+  
+  .face-preview {
+    width: 60px !important;
+    height: 38px !important;
+  }
+  
+  .face-name {
+    font-size: 14px !important;
+  }
+  
+  .face-description {
+    font-size: 11px !important;
+  }
+  
+  .theme-toggle-btn {
+    padding: 12px !important;
+  }
+  
+  .theme-icon {
+    font-size: 24px !important;
+  }
+  
+  .theme-label {
+    font-size: 12px !important;
+  }
+}
+
+/* WhatsApp QR Modal */
+.whatsapp-qr-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+  padding: 10px;
+}
+
+.whatsapp-qr-modal {
+  background: linear-gradient(135deg, 
+    #fff0f8 0%, 
+    #ffeef7 25%, 
+    #fce7f3 50%, 
+    #f8e8ff 75%, 
+    #fff0f8 100%);
+  border-radius: 24px;
+  padding: 0;
+  max-width: 400px;
+  width: 100%;
+  max-height: 90vh;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(255, 182, 193, 0.2);
+  overflow: hidden;
+  animation: modal-enter 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.whatsapp-qr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 192, 203, 0.2);
+}
+
+.whatsapp-qr-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.whatsapp-qr-close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+  touch-action: manipulation;
+}
+
+.whatsapp-qr-close-btn:hover {
+  background: rgba(255, 192, 203, 0.2);
+  color: #333;
+}
+
+.whatsapp-qr-content {
+  padding: 24px;
+  text-align: center;
+  overflow-y: auto;
+  max-height: calc(90vh - 80px);
+}
+
+.whatsapp-qr-instructions {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.whatsapp-qr-steps {
+  text-align: left;
+  font-size: 13px;
+  color: #555;
+  margin: 16px 0;
+  padding-left: 20px;
+  line-height: 1.8;
+}
+
+.whatsapp-qr-steps li {
+  margin-bottom: 8px;
+}
+
+.whatsapp-qr-image-container {
+  margin: 20px 0;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+  display: inline-block;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.whatsapp-qr-image {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+}
+
+.whatsapp-qr-waiting {
+  font-size: 12px;
+  color: #888;
+  margin-top: 16px;
+  font-style: italic;
+}
+
+.whatsapp-qr-loading {
+  padding: 40px 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 192, 203, 0.3);
+  border-top-color: #ff69b4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.whatsapp-qr-success {
+  padding: 20px;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #10b981;
+  color: white;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-weight: bold;
+}
+
+.whatsapp-qr-success h3 {
+  font-size: 20px;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.whatsapp-qr-success p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.whatsapp-qr-error {
+  padding: 20px;
+}
+
+.error-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.whatsapp-qr-error h3 {
+  font-size: 20px;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.whatsapp-qr-error p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.whatsapp-qr-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  background: rgba(255, 105, 180, 0.2);
+  border: 2px solid rgba(255, 105, 180, 0.4);
+  color: #ff69b4;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Orbitron', monospace;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.whatsapp-qr-btn:hover {
+  background: rgba(255, 105, 180, 0.3);
+  border-color: rgba(255, 105, 180, 0.6);
+  transform: translateY(-1px);
+}
+
+.whatsapp-qr-btn:active {
+  transform: translateY(0);
+}
+
+/* Mobile landscape - QR modal */
+@media screen and (orientation: landscape) and (max-height: 600px) {
+  .whatsapp-qr-modal {
+    max-width: 90vw;
+    max-height: 98vh;
+    border-radius: 16px;
+  }
+  
+  .whatsapp-qr-header {
+    padding: 12px 16px;
+  }
+  
+  .whatsapp-qr-header h2 {
+    font-size: 18px;
+  }
+  
+  .whatsapp-qr-content {
+    padding: 16px;
+    max-height: calc(98vh - 60px);
+  }
+  
+  .whatsapp-qr-image-container {
+    padding: 12px;
+    margin: 12px 0;
+  }
+  
+  .whatsapp-qr-image {
+    max-width: 200px;
+  }
+  
+  .whatsapp-qr-steps {
+    font-size: 11px;
+    margin: 12px 0;
+  }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import WhatsAppQRModal from './WhatsAppQRModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose, selectedFace, onFaceChange, theme, onThemeChange, selectedVoice, onVoiceChange }: SettingsModalProps) {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isWhatsAppQROpen, setIsWhatsAppQROpen] = useState(false);
+  const [whatsAppConnected, setWhatsAppConnected] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -95,6 +98,58 @@ export default function SettingsModal({ isOpen, onClose, selectedFace, onFaceCha
       setTimeout(loadVoices, 500);
     }
   }, [isOpen]);
+
+  // Check WhatsApp connection status
+  useEffect(() => {
+    if (isOpen) {
+      // Check immediately when modal opens
+      checkWhatsAppStatus();
+      // Then check every 2 seconds for real-time updates
+      const interval = setInterval(checkWhatsAppStatus, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen]);
+
+  const checkWhatsAppStatus = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/status');
+      const data = await response.json();
+      const isConnected = data.connected === true;
+      setWhatsAppConnected(isConnected);
+      
+      // If connected, close QR modal if it's open
+      if (isConnected && isWhatsAppQROpen) {
+        setIsWhatsAppQROpen(false);
+      }
+    } catch (error) {
+      console.error('Error checking WhatsApp status:', error);
+      setWhatsAppConnected(false);
+    }
+  };
+
+  const handleWhatsAppConnect = () => {
+    setIsWhatsAppQROpen(true);
+    // Check status immediately when opening QR modal
+    checkWhatsAppStatus();
+  };
+
+  const handleWhatsAppConnected = () => {
+    // Update status immediately when connection is confirmed
+    setWhatsAppConnected(true);
+    setIsWhatsAppQROpen(false);
+    // Also trigger a status check to ensure it's synced
+    setTimeout(() => {
+      checkWhatsAppStatus();
+    }, 500);
+  };
+
+  // Also check status when QR modal closes (in case user scanned QR and closed modal)
+  useEffect(() => {
+    if (!isWhatsAppQROpen && isOpen) {
+      // When QR modal closes, check status immediately
+      checkWhatsAppStatus();
+    }
+  }, [isWhatsAppQROpen, isOpen]);
 
   if (!isOpen) return null;
 
@@ -215,8 +270,53 @@ export default function SettingsModal({ isOpen, onClose, selectedFace, onFaceCha
               })}
             </select>
           </div>
+
+          <div className="settings-section">
+            <h3>Connected Apps</h3>
+            <div className="connected-apps-list">
+              <div className="connected-app-item">
+                <div className="app-info">
+                  <div className="app-icon">💬</div>
+                  <div className="app-details">
+                    <div className="app-name">WhatsApp</div>
+                    <div className="app-status">
+                      {whatsAppConnected ? (
+                        <span className="app-status-connected">✓ Connected</span>
+                      ) : (
+                        <span className="app-status-disconnected">Not connected</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="app-connect-btn"
+                  onClick={handleWhatsAppConnect}
+                >
+                  {whatsAppConnected ? 'Manage' : 'Connect'}
+                </button>
+              </div>
+
+              <div className="connected-app-item">
+                <div className="app-info">
+                  <div className="app-icon">🤖</div>
+                  <div className="app-details">
+                    <div className="app-name">Vista AI</div>
+                    <div className="app-status">
+                      <span className="app-status-connected">✓ Always Active</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <WhatsAppQRModal
+        isOpen={isWhatsAppQROpen}
+        onClose={() => setIsWhatsAppQROpen(false)}
+        onConnected={handleWhatsAppConnected}
+      />
     </div>
   );
 }
